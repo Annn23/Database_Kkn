@@ -7,13 +7,18 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
         .card-custom { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .card-custom:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+        .markdown-body p { margin-bottom: 0.5rem; }
+        .markdown-body ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 0.5rem; }
+        .markdown-body strong { font-weight: 600; color: #1e293b; }
     </style>
 </head>
-<body class="text-slate-800">
+<body class="text-slate-800 relative">
 
     <div class="container mx-auto p-4 md:p-8">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8 gap-4">
@@ -28,13 +33,16 @@
                     </div>
                 </div>
             </div>
-            <div class="flex gap-3 w-full md:w-auto">
+            <div class="flex flex-wrap gap-3 w-full md:w-auto">
                 <button id="dbStatus" class="flex items-center gap-2 bg-emerald-50 text-emerald-700 font-semibold px-4 py-2.5 rounded-xl border border-emerald-200 text-sm w-full md:w-auto justify-center">
                     <span class="relative flex h-3 w-3">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                     </span>
-                    Terhubung ke Database
+                    Terhubung
+                </button>
+                <button id="askAiBtn" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl shadow-sm transition text-sm w-full md:w-auto justify-center">
+                    <i class="fas fa-bolt"></i> Tanya AI Groq
                 </button>
                 <button id="downloadBtn" class="flex items-center gap-2 bg-slate-950 hover:bg-slate-800 text-white font-semibold px-5 py-2.5 rounded-xl shadow-sm transition text-sm w-full md:w-auto justify-center">
                     <i class="fas fa-file-csv"></i> Download CSV
@@ -90,30 +98,76 @@
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="divide-y divide-slate-100">
-                        </tbody>
+                    </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <script>
-        // --- KONFIGURASI SUPABASE WEB ---
-        const SUPABASE_URL = "https://zicxqpnsgjiusqsgmeas.supabase.co";
-        const SUPABASE_ANON_KEY = "sb_publishable_xYqQwcZacIQvvl5ZM8iEyg_NzQAmFAI"; // Ganti dengan Anon Key Anda
+    <div id="aiChatModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col overflow-hidden h-[600px] max-h-[90vh] transition-transform transform scale-95 opacity-0" id="aiChatContainer">
+            <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center text-white">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-white/20 rounded-lg">
+                        <i class="fas fa-bolt text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold tracking-wide">AgriBot (Llama 3 via Groq)</h3>
+                        <p class="text-xs text-indigo-200">Asisten Super Cepat Pertanian IoT</p>
+                    </div>
+                </div>
+                <button id="closeAiBtn" class="text-white hover:text-indigo-200 transition focus:outline-none">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div id="chatBox" class="flex-1 p-6 overflow-y-auto flex flex-col gap-4 bg-slate-50">
+                <div class="flex gap-3">
+                    <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                        <i class="fas fa-robot text-sm"></i>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none text-sm text-slate-700 shadow-sm max-w-[85%] markdown-body">
+                        Halo! Saya AgriBot, ditenagai oleh Groq. Data kebun Anda sudah terhubung. Anda juga bisa melampirkan file CSV atau Foto Tanaman untuk dianalisis. Ada yang ingin ditanyakan hari ini?
+                    </div>
+                </div>
+            </div>
 
-        // Inisialisasi Klien Supabase
+            <div class="p-4 bg-white border-t border-slate-100 flex gap-2 items-center relative">
+                <input type="file" id="csvUploader" accept=".csv" class="hidden">
+                <input type="file" id="cameraUploader" accept="image/*" capture="environment" class="hidden">
+
+                <button id="btnUploadCsv" class="text-slate-500 hover:text-indigo-600 transition p-2 rounded-lg hover:bg-slate-100" title="Upload Data CSV">
+                    <i class="fas fa-file-csv text-xl"></i>
+                </button>
+                <button id="btnCamera" class="text-slate-500 hover:text-indigo-600 transition p-2 rounded-lg hover:bg-slate-100" title="Ambil Foto Tanaman">
+                    <i class="fas fa-camera text-xl"></i>
+                </button>
+
+                <input type="text" id="chatInput" placeholder="Tanya sesuatu atau lampirkan data..." class="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 transition">
+                <button id="sendChatBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white w-10 h-10 flex items-center justify-center rounded-xl transition shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 shrink-0">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. KONFIGURASI KREDENSIAL ---
+        const SUPABASE_URL = "https://zicxqpnsgjiusqsgmeas.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_xYqQwcZacIQvvl5ZM8iEyg_NzQAmFAI"; 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
+        const GROQ_API_KEY = "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"; 
+        
+        // --- 2. LOGIKA DASHBOARD & TABEL ---
         let localDataLog = [];
         const tableBody = document.getElementById('tableBody');
 
-        // Mengubah format timestamp ISO dari Supabase ke format lokal Jam:Menit:Detik
         function formatTime(isoString) {
             const date = new Date(isoString);
             return date.toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium' });
         }
 
-        // Fungsi memperbarui Kartu Ringkasan Data Utama (Metrics)
         function updateCards(data) {
             document.getElementById('valSuhu').innerText = data.suhu ?? '--';
             document.getElementById('valHum').innerText = data.kelembapan_udara ?? '--';
@@ -123,11 +177,9 @@
             document.getElementById('valPh').innerText = data.ph ? data.ph.toFixed(2) : '--';
         }
 
-        // Fungsi memasukkan baris baru ke dalam tabel HTML
         function appendToTable(data, prepend = true) {
             const row = document.createElement('tr');
             row.className = "hover:bg-slate-50/80 transition-colors";
-            
             const pHColorClass = data.ph < 6 || data.ph > 8 ? "text-rose-600 font-bold" : "text-emerald-600 font-bold";
 
             row.innerHTML = `
@@ -142,16 +194,12 @@
 
             if (prepend) {
                 tableBody.prepend(row);
-                // Batasi baris tabel maksimal 30 baris agar browser tetap ringan
-                if(tableBody.children.length > 30) {
-                    tableBody.removeChild(tableBody.lastChild);
-                }
+                if(tableBody.children.length > 30) tableBody.removeChild(tableBody.lastChild);
             } else {
                 tableBody.appendChild(row);
             }
         }
 
-        // 1. Fungsi Mengambil Data Historis Pertama Kali Dibuka
         async function loadInitialData() {
             const { data, error } = await supabaseClient
                 .from('sensor_data')
@@ -160,63 +208,256 @@
                 .limit(30);
 
             if (error) {
-                console.error("Gagal memuat data awal:", error);
                 document.getElementById('dbStatus').className = "bg-rose-50 text-rose-700 font-semibold px-4 py-2.5 rounded-xl border border-rose-200 text-sm";
-                document.getElementById('dbStatus').innerText = "Koneksi Gagal / Error";
+                document.getElementById('dbStatus').innerText = "Koneksi Error";
                 return;
             }
 
             if(data && data.length > 0) {
-                localDataLog = [...data].reverse(); // Simpan log untuk CSV
-                updateCards(data[0]); // Update cards dengan data paling baru
+                localDataLog = [...data].reverse();
+                updateCards(data[0]);
                 data.forEach(row => appendToTable(row, false));
             }
         }
 
-        // 2. Fungsi Listen Data Masuk Secara Real-time (Supabase Replication Channel)
         function setupRealtimeListener() {
             supabaseClient
                 .channel('realtime_sensor_data')
-                .on(
-                    'postgres_changes', 
-                    { event: 'INSERT', schema: 'public', table: 'sensor_data' }, 
-                    (payload) => {
-                        const newData = payload.new;
-                        localDataLog.push(newData);
-                        updateCards(newData);
-                        appendToTable(newData, true);
-                    }
-                )
-                .subscribe();
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sensor_data' }, (payload) => {
+                    const newData = payload.new;
+                    localDataLog.push(newData);
+                    updateCards(newData);
+                    appendToTable(newData, true);
+                }).subscribe();
         }
 
-        // 3. Fitur Download Data ke File CSV
         document.getElementById('downloadBtn').addEventListener('click', () => {
-            if (localDataLog.length === 0) {
-                alert("Belum ada data di dalam log untuk diunduh.");
-                return;
-            }
-
-            let csvContent = "data:text/csv;charset=utf-8,";
-            // Header Tabel CSV
-            csvContent += "ID,Waktu Server,Suhu (C),Kelembapan Udara (%),Rata-rata Tanah (%),TDS (PPM),Jarak Permukaan Air (cm),Nilai pH\n";
-            
-            // Mengisi baris CSV
+            if (localDataLog.length === 0) return alert("Belum ada data.");
+            let csvContent = "data:text/csv;charset=utf-8,ID,Waktu Server,Suhu (C),Kelembapan Udara (%),Rata-rata Tanah (%),TDS (PPM),Jarak Air (cm),Nilai pH\n";
             localDataLog.forEach(row => {
                 csvContent += `${row.id},"${formatTime(row.created_at)}",${row.suhu},${row.kelembapan_udara},${row.rata_rata_tanah},${row.tds},${row.jarak_air},${row.ph}\n`;
             });
-
-            // Trigger Proses Download Browser
-            const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `IoT_Sensor_Log_${new Date().toISOString().slice(0,10)}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            link.setAttribute("href", encodeURI(csvContent));
+            link.setAttribute("download", `IoT_Sensor_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
         });
 
-        // Jalankan fungsi inisialisasi saat web dimuat
+        // --- 3. UI CHATBOT & ATTACHMENT ---
+        const askAiBtn = document.getElementById('askAiBtn');
+        const closeAiBtn = document.getElementById('closeAiBtn');
+        const aiChatModal = document.getElementById('aiChatModal');
+        const aiChatContainer = document.getElementById('aiChatContainer');
+        const chatInput = document.getElementById('chatInput');
+        const chatBox = document.getElementById('chatBox');
+
+        askAiBtn.addEventListener('click', () => {
+            aiChatModal.classList.remove('hidden');
+            setTimeout(() => {
+                aiChatContainer.classList.remove('scale-95', 'opacity-0');
+                aiChatContainer.classList.add('scale-100', 'opacity-100');
+                chatInput.focus();
+            }, 10);
+        });
+        
+        closeAiBtn.addEventListener('click', () => {
+            aiChatContainer.classList.remove('scale-100', 'opacity-100');
+            aiChatContainer.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => aiChatModal.classList.add('hidden'), 300);
+        });
+
+        function appendMessage(message, isUser = false) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`;
+            
+            const icon = isUser 
+                ? `<div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-white shrink-0"><i class="fas fa-user text-sm"></i></div>`
+                : `<div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0"><i class="fas fa-robot text-sm"></i></div>`;
+            
+            const msgStyle = isUser 
+                ? `bg-indigo-600 text-white rounded-tr-none shadow-md` 
+                : `bg-white border border-slate-200 text-slate-700 rounded-tl-none shadow-sm markdown-body overflow-x-auto`;
+
+            const formattedMessage = isUser ? message : marked.parse(message);
+
+            msgDiv.innerHTML = `
+                ${icon}
+                <div class="p-3 rounded-2xl text-sm max-w-[85%] ${msgStyle}">
+                    ${formattedMessage}
+                </div>
+            `;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Variabel untuk menyimpan data sementara
+        let attachedCsvText = "";
+        let attachedImageBase64 = null;
+
+        document.getElementById('btnUploadCsv').addEventListener('click', () => document.getElementById('csvUploader').click());
+        document.getElementById('btnCamera').addEventListener('click', () => document.getElementById('cameraUploader').click());
+
+        // LOGIKA MEMBACA CSV
+        document.getElementById('csvUploader').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                alert('Hanya file dengan format .csv yang diperbolehkan!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                attachedCsvText = event.target.result;
+                appendMessage(`*<i class="fas fa-file-csv"></i> File CSV "${file.name}" berhasil dibaca. Silakan kirim pesan untuk mulai menganalisis data ini.*`, true);
+            };
+            reader.readAsText(file);
+        });
+
+        // LOGIKA MEMBACA & MENGKOMPRESI GAMBAR
+        document.getElementById('cameraUploader').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    // Kompresi ukuran gambar ke maksimal 800px untuk mencegah error "Payload Too Large" dari Groq API
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 800;
+                    const MAX_HEIGHT = 800;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    } else {
+                        if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Konversi ke base64 dengan format JPEG kualitas 80%
+                    attachedImageBase64 = canvas.toDataURL('image/jpeg', 0.8); 
+                    
+                    const imgPreview = `<br><img src="${attachedImageBase64}" class="max-w-[200px] rounded-lg mt-2 border border-slate-200 shadow-sm">`;
+                    appendMessage(`*<i class="fas fa-camera"></i> Gambar tanaman berhasil dilampirkan.*${imgPreview}`, true);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // --- 4. FUNGSI FETCH GROQ API ---
+        async function fetchGroqResponse(userPrompt) {
+            if (!GROQ_API_KEY) return "⚠️ Error: API Key Groq belum diatur.";
+
+            const apiUrl = "https://api.groq.com/openai/v1/chat/completions";
+            
+            const vSuhu = document.getElementById('valSuhu').innerText;
+            const vHum = document.getElementById('valHum').innerText;
+            const vTanah = document.getElementById('valTanah').innerText;
+            const vTds = document.getElementById('valTds').innerText;
+            const vPh = document.getElementById('valPh').innerText;
+
+            const systemPrompt = `Kamu adalah AgriBot, asisten AI ahli pertanian pintar berbasis IoT.
+Kondisi kebun real-time: Suhu ${vSuhu}°C, Kelembapan ${vHum}%, Tanah ${vTanah}%, TDS ${vTds} PPM, pH ${vPh}. Berikan jawaban ringkas, solutif, dan gunakan markdown.`;
+
+            // Menyusun prompt jika ada CSV
+            let finalUserPrompt = userPrompt;
+            if (attachedCsvText) {
+                finalUserPrompt += `\n\n--- DATA CSV TERLAMPIR ---\n${attachedCsvText.substring(0, 4000)}\n\n(Instruksi untuk AI: Analisis data CSV di atas dan berikan kesimpulan, tren, atau jawaban yang relevan dengan pertanyaan user.)`; 
+            }
+
+            let messagesPayload = [ { role: "system", content: systemPrompt } ];
+
+            // Struktur payload berbeda jika ada lampiran gambar
+            if (attachedImageBase64) {
+                messagesPayload.push({
+                    role: "user",
+                    content: [
+                        { type: "text", text: finalUserPrompt },
+                        { type: "image_url", image_url: { url: attachedImageBase64 } }
+                    ]
+                });
+            } else {
+                messagesPayload.push({ role: "user", content: finalUserPrompt });
+            }
+
+            // PERBAIKAN: Selalu gunakan Llama 3.2 Vision jika ada gambar
+            const selectedModel = attachedImageBase64 ? "meta-llama/llama-4-scout-17b-16e-instruct" : "llama-3.1-8b-instant";
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${GROQ_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: selectedModel,
+                        messages: messagesPayload,
+                        temperature: 0.6,
+                        max_tokens: 1024
+                    })
+                });
+
+                const data = await response.json();
+                
+                // Reset form attachment agar tidak terkirim ulang di chat berikutnya
+                attachedCsvText = ""; 
+                attachedImageBase64 = null;
+                document.getElementById('csvUploader').value = "";
+                document.getElementById('cameraUploader').value = "";
+
+                if (data.error) {
+                    console.error("API Error Response:", data.error);
+                    return `**Gagal memproses!** Pesan dari server: *${data.error.message}*`;
+                }
+
+                return data.choices[0].message.content;
+                
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                return "Gagal terhubung ke server Groq. Periksa koneksi internet atau Console log Anda.";
+            }
+        }
+
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            // Cegah kirim pesan kosong JIKA tidak ada data/gambar yang diupload
+            if (!text && !attachedCsvText && !attachedImageBase64) return; 
+
+            // Jika user hanya upload file tanpa ngetik, kita beri prompt default
+            const promptToSend = text || "Tolong analisis data atau gambar yang saya lampirkan.";
+            
+            if (text) appendMessage(text, true);
+            chatInput.value = '';
+
+            const typingId = 'typing-' + Date.now();
+            const typingDiv = document.createElement('div');
+            typingDiv.id = typingId;
+            typingDiv.className = 'flex gap-3 text-slate-400 text-sm italic items-center';
+            typingDiv.innerHTML = `<i class="fas fa-robot text-indigo-400 animate-pulse"></i> Membaca dan menganalisis...`;
+            chatBox.appendChild(typingDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            const aiResponse = await fetchGroqResponse(promptToSend);
+            
+            document.getElementById(typingId).remove();
+            appendMessage(aiResponse, false);
+        }
+
+        document.getElementById('sendChatBtn').addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
         loadInitialData();
         setupRealtimeListener();
     </script>
