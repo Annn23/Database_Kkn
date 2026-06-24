@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase IoT Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .card-custom { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card-custom:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8 gap-4">
+            <div>
+                <div class="flex items-center gap-3">
+                    <div class="p-3 bg-emerald-50 rounded-xl text-emerald-600">
+                        <i class="fas fa-database text-2xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">Supabase IoT Dashboard</h1>
+                        <p class="text-slate-500 text-sm mt-0.5">Sistem Monitoring Sensor Berbasis Cloud Real-time</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 w-full md:w-auto">
+                <button id="dbStatus" class="flex items-center gap-2 bg-emerald-50 text-emerald-700 font-semibold px-4 py-2.5 rounded-xl border border-emerald-200 text-sm w-full md:w-auto justify-center">
+                    <span class="relative flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </span>
+                    Terhubung ke Database
+                </button>
+                <button id="downloadBtn" class="flex items-center gap-2 bg-slate-950 hover:bg-slate-800 text-white font-semibold px-5 py-2.5 rounded-xl shadow-sm transition text-sm w-full md:w-auto justify-center">
+                    <i class="fas fa-file-csv"></i> Download CSV
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5 mb-8">
+            <div class="card-custom bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-orange-500">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Suhu Udara</div>
+                <div class="text-3xl font-bold text-slate-800"><span id="valSuhu">--</span><span class="text-lg font-normal text-slate-400 ml-1">°C</span></div>
+            </div>
+            <div class="card-custom bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-blue-500">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Kelembapan Udara</div>
+                <div class="text-3xl font-bold text-slate-800"><span id="valHum">--</span><span class="text-lg font-normal text-slate-400 ml-1">%</span></div>
+            </div>
+            <div class="card-custom bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-emerald-600">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Rata-rata Tanah</div>
+                <div class="text-3xl font-bold text-slate-800"><span id="valTanah">--</span><span class="text-lg font-normal text-slate-400 ml-1">%</span></div>
+            </div>
+            <div class="card-custom bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-violet-500">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Kadar TDS Air</div>
+                <div class="text-3xl font-bold text-slate-800"><span id="valTds">--</span><span class="text-sm font-normal text-slate-400 ml-1">PPM</span></div>
+            </div>
+            <div class="card-custom bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-sky-400">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tinggi Permukaan</div>
+                <div class="text-3xl font-bold text-slate-800"><span id="valJarak">--</span><span class="text-sm font-normal text-slate-400 ml-1">cm</span></div>
+            </div>
+            <div class="card-custom bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-amber-500">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Nilai pH Air</div>
+                <div class="text-3xl font-bold text-slate-800"><span id="valPh">--</span></div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/70 flex justify-between items-center">
+                <h2 class="font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fas fa-list text-slate-400"></i> Riwayat Pembacaan Sensor
+                </h2>
+                <span class="text-xs text-slate-500 bg-white border px-2.5 py-1 rounded-md font-medium shadow-2xs">Menampilkan 30 data terakhir</span>
+            </div>
+            <div class="overflow-x-auto max-h-[500px]">
+                <table class="w-full text-sm text-left text-slate-600">
+                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
+                        <tr>
+                            <th class="px-6 py-3.5">Waktu Server</th>
+                            <th class="px-6 py-3.5">Suhu (°C)</th>
+                            <th class="px-6 py-3.5">Kel. Udara (%)</th>
+                            <th class="px-6 py-3.5">Tanah (%)</th>
+                            <th class="px-6 py-3.5">TDS (PPM)</th>
+                            <th class="px-6 py-3.5">Jarak Air (cm)</th>
+                            <th class="px-6 py-3.5">pH Air</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-100">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- KONFIGURASI SUPABASE WEB ---
+        const SUPABASE_URL = "https://zicxqpnsgjiusqsgmeas.supabase.co/rest/v1/sensor_data";; // Ganti dengan URL Supabase Anda
+        const SUPABASE_ANON_KEY = "sb_publishable_xYqQwcZacIQvvl5ZM8iEyg_NzQAmFAI"; // Ganti dengan Anon Key Anda
+
+        // Inisialisasi Klien Supabase
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        let localDataLog = [];
+        const tableBody = document.getElementById('tableBody');
+
+        // Mengubah format timestamp ISO dari Supabase ke format lokal Jam:Menit:Detik
+        function formatTime(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium' });
+        }
+
+        // Fungsi memperbarui Kartu Ringkasan Data Utama (Metrics)
+        function updateCards(data) {
+            document.getElementById('valSuhu').innerText = data.suhu ?? '--';
+            document.getElementById('valHum').innerText = data.kelembapan_udara ?? '--';
+            document.getElementById('valTanah').innerText = data.rata_rata_tanah ?? '--';
+            document.getElementById('valTds').innerText = data.tds ?? '--';
+            document.getElementById('valJarak').innerText = data.jarak_air ?? '--';
+            document.getElementById('valPh').innerText = data.ph ? data.ph.toFixed(2) : '--';
+        }
+
+        // Fungsi memasukkan baris baru ke dalam tabel HTML
+        function appendToTable(data, prepend = true) {
+            const row = document.createElement('tr');
+            row.className = "hover:bg-slate-50/80 transition-colors";
+            
+            const pHColorClass = data.ph < 6 || data.ph > 8 ? "text-rose-600 font-bold" : "text-emerald-600 font-bold";
+
+            row.innerHTML = `
+                <td class="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">${formatTime(data.created_at)}</td>
+                <td class="px-6 py-4">${data.suhu ?? '--'}</td>
+                <td class="px-6 py-4">${data.kelembapan_udara ?? '--'}</td>
+                <td class="px-6 py-4">${data.rata_rata_tanah ?? '--'}</td>
+                <td class="px-6 py-4">${data.tds ?? '--'}</td>
+                <td class="px-6 py-4">${data.jarak_air ?? '--'}</td>
+                <td class="px-6 py-4 ${pHColorClass}">${data.ph ? data.ph.toFixed(2) : '--'}</td>
+            `;
+
+            if (prepend) {
+                tableBody.prepend(row);
+                // Batasi baris tabel maksimal 30 baris agar browser tetap ringan
+                if(tableBody.children.length > 30) {
+                    tableBody.removeChild(tableBody.lastChild);
+                }
+            } else {
+                tableBody.appendChild(row);
+            }
+        }
+
+        // 1. Fungsi Mengambil Data Historis Pertama Kali Dibuka
+        async function loadInitialData() {
+            const { data, error } = await supabaseClient
+                .from('sensor_data')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(30);
+
+            if (error) {
+                console.error("Gagal memuat data awal:", error);
+                document.getElementById('dbStatus').className = "bg-rose-50 text-rose-700 font-semibold px-4 py-2.5 rounded-xl border border-rose-200 text-sm";
+                document.getElementById('dbStatus').innerText = "Koneksi Gagal / Error";
+                return;
+            }
+
+            if(data && data.length > 0) {
+                localDataLog = [...data].reverse(); // Simpan log untuk CSV
+                updateCards(data[0]); // Update cards dengan data paling baru
+                data.forEach(row => appendToTable(row, false));
+            }
+        }
+
+        // 2. Fungsi Listen Data Masuk Secara Real-time (Supabase Replication Channel)
+        function setupRealtimeListener() {
+            supabaseClient
+                .channel('realtime_sensor_data')
+                .on(
+                    'postgres_changes', 
+                    { event: 'INSERT', schema: 'public', table: 'sensor_data' }, 
+                    (payload) => {
+                        const newData = payload.new;
+                        localDataLog.push(newData);
+                        updateCards(newData);
+                        appendToTable(newData, true);
+                    }
+                )
+                .subscribe();
+        }
+
+        // 3. Fitur Download Data ke File CSV
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            if (localDataLog.length === 0) {
+                alert("Belum ada data di dalam log untuk diunduh.");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            // Header Tabel CSV
+            csvContent += "ID,Waktu Server,Suhu (C),Kelembapan Udara (%),Rata-rata Tanah (%),TDS (PPM),Jarak Permukaan Air (cm),Nilai pH\n";
+            
+            // Mengisi baris CSV
+            localDataLog.forEach(row => {
+                csvContent += `${row.id},"${formatTime(row.created_at)}",${row.suhu},${row.kelembapan_udara},${row.rata_rata_tanah},${row.tds},${row.jarak_air},${row.ph}\n`;
+            });
+
+            // Trigger Proses Download Browser
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `IoT_Sensor_Log_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // Jalankan fungsi inisialisasi saat web dimuat
+        loadInitialData();
+        setupRealtimeListener();
+    </script>
+</body>
+</html>
