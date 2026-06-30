@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C'MON — Citrus Monitoring | Smart Agro & AI</title>
+    <meta name="description"
+        content="C'MON - Sistem monitoring sensor pertanian pintar berbasis IoT dan AI. Pantau suhu, kelembapan, pH, TDS, dan tinggi air secara real-time.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- ==================== SPLASH SCREEN ==================== -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="splash-content">
+            <img src="assets/logo-splash.jpg" alt="C'MON - Citrus Monitoring" class="splash-logo">
+
+            <div class="splash-loader">
+                <div class="splash-loader-bar"></div>
+            </div>
+            <span class="splash-loading-text">Memuat data sensor...</span>
+        </div>
+
+        <div class="splash-supported">
+            <span class="splash-supported-label">Supported by :</span>
+            <div class="splash-logos">
+                <img src="assets/logo-um.png" alt="Universitas Negeri Malang">
+                <img src="assets/logo-psdw.png" alt="Pusat Sumber Daya Wilayah UM">
+                <img src="assets/logo-umbbm.png" alt="UM BBM">
+                <img src="assets/logo-kkn.png" alt="KKN Universitas Negeri Malang">
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MAIN CONTENT WRAPPER ==================== -->
+    <div class="main-content" id="mainContent">
+
+    <!-- ==================== APP CONTAINER ==================== -->
+    <div class="app-container">
+
+        <!-- HEADER -->
+        <div class="header-card animate-in">
+            <div class="header-top">
+                <img src="assets/logo.png" alt="C'MON Logo" class="header-logo" onerror="this.style.display='none'">
+                <div class="header-text">
+                    <h1>C'MON</h1>
+                    <p>Citrus Monitoring — Smart Agro & AI</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="status-badge" id="dbStatus">
+                    <span class="status-dot"></span>
+                    Terhubung
+                </div>
+                <button class="btn-csv" id="downloadBtn" title="Download CSV">
+                    <i class="fas fa-cloud-arrow-down"></i> CSV
+                </button>
+                <button class="btn-ai" id="askAiBtn" title="Tanya AI">
+                    <i class="fas fa-bolt"></i> Tanya AI
+                </button>
+            </div>
+        </div>
+
+        <!-- SENSOR CARDS GRID -->
+        <div class="page-view active" id="dashboardPage">
+            <div class="sensor-grid">
+
+                <!-- Card: Suhu Udara -->
+                <div class="sensor-card accent-orange animate-in" id="card-suhu">
+                    <div class="sensor-card-header">
+                        <div class="sensor-icon icon-orange">
+                            <i class="fas fa-temperature-half"></i>
+                        </div>
+                        <span class="sensor-label">Suhu Udara</span>
+                    </div>
+                    <div class="sensor-value">
+                        <span id="valSuhu">--</span><span class="sensor-unit">°C</span>
+                    </div>
+                </div>
+
+                <!-- Card: Kelembapan -->
+                <div class="sensor-card accent-blue animate-in" id="card-hum">
+                    <div class="sensor-card-header">
+                        <div class="sensor-icon icon-blue">
+                            <i class="fas fa-droplet"></i>
+                        </div>
+                        <span class="sensor-label">Kelembapan</span>
+                    </div>
+                    <div class="sensor-value">
+                        <span id="valHum">--</span><span class="sensor-unit">%</span>
+                    </div>
+                </div>
+
+                <!-- Card: Rata² Tanah -->
+                <div class="sensor-card accent-green animate-in" id="card-tanah">
+                    <div class="sensor-card-header">
+                        <div class="sensor-icon icon-green">
+                            <i class="fas fa-seedling"></i>
+                        </div>
+                        <span class="sensor-label">Rata² Tanah</span>
+                    </div>
+                    <div class="sensor-value">
+                        <span id="valTanah">--</span><span class="sensor-unit">%</span>
+                    </div>
+                </div>
+
+                <!-- Card: Kadar TDS -->
+                <div class="sensor-card accent-orange animate-in" id="card-tds">
+                    <div class="sensor-card-header">
+                        <div class="sensor-icon icon-orange">
+                            <i class="fas fa-flask"></i>
+                        </div>
+                        <span class="sensor-label">Kadar TDS</span>
+                    </div>
+                    <div class="sensor-value">
+                        <span id="valTds">--</span><span class="sensor-unit">PPM</span>
+                    </div>
+                </div>
+
+                <!-- Card: Tinggi Air -->
+                <div class="sensor-card accent-blue animate-in" id="card-jarak">
+                    <div class="sensor-card-header">
+                        <div class="sensor-icon icon-blue">
+                            <i class="fas fa-water"></i>
+                        </div>
+                        <span class="sensor-label">Tinggi Air</span>
+                    </div>
+                    <div class="sensor-value">
+                        <span id="valJarak">--</span><span class="sensor-unit">cm</span>
+                    </div>
+                </div>
+
+                <!-- Card: pH Air -->
+                <div class="sensor-card accent-teal animate-in" id="card-ph">
+                    <div class="sensor-card-header">
+                        <div class="sensor-icon icon-teal">
+                            <i class="fas fa-vial"></i>
+                        </div>
+                        <span class="sensor-label">pH Air</span>
+                    </div>
+                    <div class="sensor-value">
+                        <span id="valPh">--</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- HISTORY TABLE -->
+            <div class="history-section animate-in">
+                <div class="history-header">
+                    <div class="history-title">
+                        <i class="fas fa-clock-rotate-left"></i>
+                        Riwayat Sensor
+                    </div>
+                    <span class="history-badge">30 data terakhir</span>
+                </div>
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Waktu</th>
+                                <th>Suhu °C</th>
+                                <th>Kel. %</th>
+                                <th>Tanah %</th>
+                                <th>TDS</th>
+                                <th>Air cm</th>
+                                <th>pH</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- C'MON BOT CHAT PAGE -->
+        <div class="chat-page" id="chatPage">
+            <div class="chat-header">
+                <div class="chat-header-info">
+                    <div class="chat-header-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="chat-header-text">
+                        <h3>C'MON Bot (Llama 3 via Groq)</h3>
+                        <p>Asisten Pertanian IoT Cerdas</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-body" id="chatBox">
+                <div class="chat-msg">
+                    <div class="chat-avatar bot">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="chat-bubble bot markdown-body">
+                        Halo! Saya <strong>C'MON Bot</strong>, ditenagai oleh Groq. Data kebun Anda sudah terhubung.
+                        Anda juga bisa melampirkan file CSV atau Foto Tanaman untuk dianalisis. Ada yang ingin
+                        ditanyakan hari ini?
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-footer">
+                <input type="file" id="csvUploader" accept=".csv" class="hidden">
+                <input type="file" id="cameraUploader" accept="image/*" capture="environment" class="hidden">
+
+                <button class="chat-footer-btn" id="btnUploadCsv" title="Upload Data CSV">
+                    <i class="fas fa-file-csv"></i>
+                </button>
+                <button class="chat-footer-btn" id="btnCamera" title="Ambil Foto Tanaman">
+                    <i class="fas fa-camera"></i>
+                </button>
+
+                <input type="text" id="chatInput" class="chat-input" placeholder="Tanya sesuatu ke C'MON Bot...">
+                <button class="chat-send-btn" id="sendChatBtn">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ==================== BOTTOM NAVIGATION ==================== -->
+    <nav class="bottom-nav" id="bottomNav">
+        <button class="nav-item active" id="navDashboard">
+            <i class="fas fa-house"></i>
+            <span>Dashboard</span>
+            <div class="nav-indicator"></div>
+        </button>
+        <button class="nav-item" id="navAiNav">
+            <i class="fas fa-robot"></i>
+            <span>Tanya C'MON Bot</span>
+            <div class="nav-indicator"></div>
+        </button>
+    </nav>
+
+    </div> <!-- END main-content -->
+
+    <!-- ==================== SCRIPTS ==================== -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>

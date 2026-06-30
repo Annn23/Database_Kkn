@@ -1,0 +1,5 @@
+# Dependencies
+node_modules/
+
+# Config file berisi API keys — JANGAN di-push!
+config.js
